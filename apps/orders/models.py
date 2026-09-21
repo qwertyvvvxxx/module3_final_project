@@ -1,41 +1,78 @@
-from django.contrib.auth.models import User
-from django.db import models
+from decimal import Decimal
 
+from django.db import models
+from django.conf import settings
+
+from apps.core.models import TimeStampedModel
 from apps.catalog.models import Product
 
 
-# Create your models here.
+class Order(TimeStampedModel):
+    class OrderStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        SHIPPED = "shipped", "Shipped"
+        DELIVERED = "delivered", "Delivered"
+        CANCELLED = "cancelled", "Cancelled"
 
-class Order(models.Model):
+    order_number = models.BigAutoField(primary_key=True) # TODO: зробити autoincrement +
 
-    status_choices = [
-        ("pending", "Pending"),
-        ("paid", "Paid"),
-        ("shipped", "Shipped"),
-        ("delivered", "Delivered"),
-        ("cancelled", "Cancelled"),
-    ]
-
-    id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    status = models.CharField(choices=status_choices, default="pending", max_length=50)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='orders',
+    )
+    status = models.CharField(
+        choices=OrderStatus.choices,
+        default=OrderStatus.PENDING,
+        max_length=10
+    )
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     shipping_address = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"#{self.order_number}"
 
 
-    def __str__(self):
-        return f"Замовлення #{self.id} — {self.user} ({self.get_status_display()})"
+    # TODO: override save() щоб розрахувати total_price з OrderItem[] +
+    def save(self, *args, **kwargs):
+        # Спочатку зберігаємо саме замовлення, щоб у нього з'явився ID в базі (якщо це нове замовлення)
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
 
+        # Якщо замовлення вже існувало або ми перераховуємо суму після додавання OrderItem
+        if not is_new and self.items.exists():
+            # Рахуємо суму всіх пов'язаних OrderItem через property total
+            total = sum(item.total for item in self.items.all())
 
+            # Якщо порахована сума відрізняється від поточної total_price, оновлюємо її
+            if self.total_price != total:
+                self.total_price = total
+                # Використовуємо update_fields, щоб уникнути нескінченної рекурсії при повторному save()
+                super().save(update_fields=['total_price'])
 
 class OrderItem(models.Model):
-    id = models.AutoField(primary_key=True)
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='items',
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='order_items',
+    )
+    quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
-    def __str__(self):
-        return f"{self.quantity}x {self.product} у Замовленні #{self.order.id}"
+    def __str__(self) -> str:
+        return f"{self.product} x {self.quantity}"
+
+    @property
+    def total(self) -> Decimal:
+        # TODO: підрахунок загальної ціни цього продукту в замовленні +
+        return Decimal(self.quantity) * self.price
+
