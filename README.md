@@ -7,7 +7,7 @@ staff-панель, REST API з документацією та GraphQL-анал
 **Стек:** Python 3.12, Django 6.1, DRF + SimpleJWT, drf-spectacular, graphene-django,
 PostgreSQL 17, uv, gunicorn, whitenoise, Caddy, Docker Compose, GitHub Actions.
 
-**Автор:** `<ПІБ>`, група `<№ групи>`
+**Автор:** `Дячук Іван`
 
 ## Що всередині
 
