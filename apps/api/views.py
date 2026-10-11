@@ -3,7 +3,12 @@ from typing import Any, cast
 
 from django.db.models import QuerySet
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -255,10 +260,35 @@ class RegisterView(generics.CreateAPIView):
 
 @extend_schema(tags=["Users"])
 class LoginView(TokenObtainPairView):
-    """JWT login: `username` is the email or the username, as on the site."""
+    """JWT login: `username` is the email or the username, as on the site.
+
+    The response has `access` (30 хв) and `refresh` (7 днів) токени.
+    Send `Authorization: Bearer <access>` on subsequent requests; when it expires,
+    POST the `refresh` token to `/api/users/token/refresh/` for a new `access`.
+    """
 
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
+
+    @extend_schema(
+        examples=[
+            OpenApiExample(
+                "Запит",
+                value={"username": "olena@example.com", "password": "demo-pass-123"},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Відповідь",
+                value={
+                    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                },
+                response_only=True,
+            ),
+        ],
+    )
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        return super().post(request, *args, **kwargs)
 
 
 @extend_schema(tags=["Users"])

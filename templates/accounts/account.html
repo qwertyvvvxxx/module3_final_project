@@ -16,6 +16,15 @@
     <div class="tab-content">
       <!-- Order History Panel -->
       <div id="order-history" class="tab-pane{% if not form.errors %} active{% endif %}">
+        <form method="get" action="{% url 'accounts:profile' %}" class="account-status-filter" style="margin-bottom: 1rem;">
+          <label for="id_status">Статус:</label>
+          <select name="status" id="id_status" class="Input" style="max-width: 16rem;" onchange="this.form.submit()">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="button button--secondary">Фільтрувати</button></noscript>
+        </form>
         <div class="order-history-table">
           <!-- Table Header -->
           <div class="order-table-header">
@@ -51,12 +60,12 @@
         <!-- Pagination (simplified) -->
         <div class="account-pagination">
           {% if orders_page.has_previous %}
-            <a href="?page={{ orders_page.previous_page_number }}" class="pagination-link-account">← Назад</a>
+            <a href="?page={{ orders_page.previous_page_number }}{% if selected_status %}&amp;status={{ selected_status }}{% endif %}" class="pagination-link-account">← Назад</a>
           {% else %}
             <a href="#" class="pagination-link-account disabled">← Назад</a>
           {% endif %}
           {% if orders_page.has_next %}
-            <a href="?page={{ orders_page.next_page_number }}" class="pagination-link-account">Далі →</a>
+            <a href="?page={{ orders_page.next_page_number }}{% if selected_status %}&amp;status={{ selected_status }}{% endif %}" class="pagination-link-account">Далі →</a>
           {% else %}
             <a href="#" class="pagination-link-account disabled">Далі →</a>
           {% endif %}
@@ -124,6 +133,7 @@
               <input type="hidden" name="warehouse_ref" value="{{ form.warehouse_ref.value|default:'' }}">
             </div>
             <button type="submit" class="button button--primary button--full-width">Зберегти</button>
+            <a href="{% url 'accounts:password_change' %}" class="button button--secondary button--full-width">Змінити пароль</a>
             <button type="submit" form="logout-form" class="button button--secondary button--full-width" id="logout-button">Вийти</button>
           </form>
           <form id="logout-form" method="post" action="{% url 'accounts:logout' %}" hidden>{% csrf_token %}</form>

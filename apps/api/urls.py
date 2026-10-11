@@ -1,5 +1,5 @@
 from django.urls import include, path
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiExample, extend_schema, extend_schema_view
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -20,7 +20,23 @@ router.register("products", ProductViewSet, basename="product")
 router.register("categories", CategoryViewSet, basename="category")
 router.register("orders", OrderViewSet, basename="order")
 
-RefreshView = extend_schema_view(post=extend_schema(tags=["Users"]))(TokenRefreshView)
+RefreshView = extend_schema_view(
+    post=extend_schema(
+        tags=["Users"],
+        examples=[
+            OpenApiExample(
+                "Запит",
+                value={"refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Відповідь",
+                value={"access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."},
+                response_only=True,
+            ),
+        ],
+    )
+)(TokenRefreshView)
 
 urlpatterns = [
     path("", include(router.urls)),

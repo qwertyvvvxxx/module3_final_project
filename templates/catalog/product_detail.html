@@ -28,7 +28,8 @@
                     {% if product.in_stock %}
                         <form method="post" action="{% url 'orders:cart_add' product.id %}">
                             {% csrf_token %}
-                            <input type="hidden" name="quantity" value="1">
+                            <label for="id_quantity" class="review-form__label">Кількість</label>
+                            <input type="number" id="id_quantity" name="quantity" value="1" min="1" max="{{ product.stock }}" class="Input" style="max-width: 6rem; margin-right: 0.75rem;" required>
                             <button type="submit" class="button button--primary add-to-cart-button" id="add-to-cart-btn">
                                 <i class="fa-solid fa-cart-shopping"></i>
                                 <span>Додати в кошик</span>

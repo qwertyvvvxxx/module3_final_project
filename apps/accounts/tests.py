@@ -3,6 +3,7 @@ from django.test import Client
 from django.urls import reverse
 
 from apps.accounts.models import User
+from apps.orders.models import Order
 
 
 @pytest.mark.parametrize("login", ["alice@example.com", "ALICE@example.com", "alice"])
@@ -96,3 +97,68 @@ def test_city_without_branch_is_an_error(client: Client, user: User, nova_poshta
     )
 
     assert "warehouse_name" in response.context["form"].errors
+
+
+# --- Order history filters -----------------------------------------------------------
+
+
+def make_order(user: User, status: str) -> Order:
+    return Order.objects.create(user=user, shipping_address="Kyiv", status=status)
+
+
+def test_order_history_filters_by_status(client: Client, user: User) -> None:
+    client.force_login(user)
+    make_order(user, "paid")
+    pending = make_order(user, "pending")
+
+    response = client.get(reverse("accounts:profile"), {"status": "pending"})
+
+    assert list(response.context["orders_page"]) == [pending]
+
+
+def test_order_history_ignores_unknown_status(client: Client, user: User) -> None:
+    client.force_login(user)
+    order = make_order(user, "paid")
+
+    response = client.get(reverse("accounts:profile"), {"status": "hack"})
+
+    assert list(response.context["orders_page"]) == [order]
+    assert response.context["selected_status"] == ""
+
+
+# --- Password change -----------------------------------------------------------------
+
+
+def test_password_change(client: Client, user: User) -> None:
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounts:password_change"),
+        {
+            "old_password": "secret-pass-123",
+            "new_password1": "New-strong-pass-456",
+            "new_password2": "New-strong-pass-456",
+        },
+    )
+
+    assert response.status_code == 302
+    user.refresh_from_db()
+    assert user.check_password("New-strong-pass-456")
+
+
+def test_password_change_requires_old_password(client: Client, user: User) -> None:
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounts:password_change"),
+        {
+            "old_password": "wrong",
+            "new_password1": "New-strong-pass-456",
+            "new_password2": "New-strong-pass-456",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "old_password" in response.context["form"].errors
+    user.refresh_from_db()
+    assert user.check_password("secret-pass-123")

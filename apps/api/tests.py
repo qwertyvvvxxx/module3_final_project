@@ -284,7 +284,6 @@ def test_login_is_throttled(api: APIClient, user: User) -> None:
 # --- Docs ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="K6: Swagger (SPECTACULAR_SETTINGS + urls)")
 def test_openapi_schema_and_swagger(api: APIClient, db) -> None:
     schema = api.get("/api/schema/")
     assert schema.status_code == 200

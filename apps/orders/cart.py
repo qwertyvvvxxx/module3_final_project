@@ -47,12 +47,13 @@ class Cart:
         self.items[str(product.pk)] = quantity
         self.session.modified = True
 
-
     def remove(self, product: Product) -> None:
         self.items.pop(str(product.pk), None)
+        self.session.modified = True
 
     def clear(self) -> None:
         self.items.clear()
+        self.session.modified = True
 
     def __iter__(self) -> Iterator[CartLine]:
         """Lines with products loaded in one query; hidden or deleted products are skipped."""

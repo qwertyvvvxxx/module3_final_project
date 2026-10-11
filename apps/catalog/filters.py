@@ -1,11 +1,15 @@
+from typing import Any
+
 import django_filters as filters
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from .models import Category, Product
 
 
 class StableOrderingFilter(filters.OrderingFilter):
-    def filter(self, qs, value):
+    """Keep the chosen order stable across pages by adding -pk as a tiebreaker."""
+
+    def filter(self, qs: QuerySet[Product], value: Any) -> QuerySet[Product]:
         qs = super().filter(qs, value)
         if value:
             qs = qs.order_by(*qs.query.order_by, "-pk")
@@ -38,17 +42,23 @@ class ProductFilter(filters.FilterSet):
         model = Product
         fields: list[str] = []
 
-    def filter_search(self, queryset, name, value):
+    def filter_search(
+        self, queryset: QuerySet[Product], name: str, value: Any
+    ) -> QuerySet[Product]:
         """Search in product name and description."""
         return queryset.filter(self._search_query(value))
 
-    def filter_category(self, queryset, name, value):
+    def filter_category(
+        self, queryset: QuerySet[Product], name: str, value: Any
+    ) -> QuerySet[Product]:
         """Filter by one or more categories, including products of their subcategories."""
         if not value:
             return queryset
         return queryset.filter(Q(category__in=value) | Q(category__parent__in=value))
 
-    def filter_in_stock(self, queryset, name, value):
+    def filter_in_stock(
+        self, queryset: QuerySet[Product], name: str, value: bool
+    ) -> QuerySet[Product]:
         if not value:
             return queryset
         return queryset.filter(stock__gt=0)

@@ -36,6 +36,25 @@
                     {% endfor %}
                 </div>
             </div>
+
+            <div class="sidebar__section">
+                <h3 class="section-title">Ціна</h3>
+                <div class="checkbox-group">
+                    <input type="number" name="min_price" form="catalog-filters" value="{{ filter.form.min_price.value|default:'' }}" placeholder="від" min="0" step="0.01" class="search-input" style="margin-bottom: 0.5rem;">
+                    <input type="number" name="max_price" form="catalog-filters" value="{{ filter.form.max_price.value|default:'' }}" placeholder="до" min="0" step="0.01" class="search-input">
+                    <button type="submit" form="catalog-filters" class="button button--secondary" style="margin-top: 0.5rem;">Застосувати</button>
+                </div>
+            </div>
+
+            <div class="sidebar__section">
+                <h3 class="section-title">Наявність</h3>
+                <div class="checkbox-group">
+                    <label class="checkbox-container">Лише в наявності
+                        <input type="checkbox" name="in_stock" value="1" form="catalog-filters" data-autosubmit {% if filter.form.in_stock.value %}checked{% endif %}>
+                        <span class="checkmark"></span>
+                    </label>
+                </div>
+            </div>
         </aside>
 
         <section class="products-area product-grid-section">
@@ -53,6 +72,7 @@
                     <a href="{% querystring ordering='price' page=None %}" class="sort-button {% if request.GET.ordering == 'price' %}active-sort{% endif %}">Спершу дешевші</a>
                     <a href="{% querystring ordering='-price' page=None %}" class="sort-button {% if request.GET.ordering == '-price' %}active-sort{% endif %}">Спершу дорожчі</a>
                     <a href="{% querystring ordering='-rating' page=None %}" class="sort-button {% if request.GET.ordering == '-rating' %}active-sort{% endif %}">За рейтингом</a>
+                    <a href="{% querystring ordering='-popularity' page=None %}" class="sort-button {% if request.GET.ordering == '-popularity' %}active-sort{% endif %}">Популярні</a>
                 </div>
             </div>
 

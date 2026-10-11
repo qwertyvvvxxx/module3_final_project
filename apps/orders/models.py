@@ -70,23 +70,6 @@ class Order(TimeStampedModel):
         """An order can be cancelled until it has been shipped."""
         return self.status in (self.OrderStatus.PENDING, self.OrderStatus.PAID)
 
-    # TODO: override save() щоб розрахувати total_price з OrderItem[] +
-    # def save(self, *args, **kwargs):
-    #     # Спочатку зберігаємо саме замовлення, щоб у нього з'явився ID в базі (якщо це нове замовлення)
-    #     is_new = self.pk is None
-    #     super().save(*args, **kwargs)
-    #
-    #     # Якщо замовлення вже існувало або ми перераховуємо суму після додавання OrderItem
-    #     if not is_new and self.items.exists():
-    #         # Рахуємо суму всіх пов'язаних OrderItem через property total
-    #         total = sum(item.total for item in self.items.all())
-    #
-    #         # Якщо порахована сума відрізняється від поточної total_price, оновлюємо її
-    #         if self.total_price != total:
-    #             self.total_price = total
-    #             # Використовуємо update_fields, щоб уникнути нескінченної рекурсії при повторному save()
-    #             super().save(update_fields=["total_price"])
-
     def recalculate_total(self) -> Decimal:
         """Recalculate total_price from the current order items."""
         result = self.items.aggregate(
@@ -125,5 +108,4 @@ class OrderItem(models.Model):
 
     @property
     def total(self) -> Decimal:
-        # TODO: підрахунок загальної ціни цього продукту в замовленні +
         return Decimal(self.quantity) * self.price

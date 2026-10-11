@@ -1,7 +1,7 @@
 [project]
 name = "module3-final-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "Інтернет-магазин товарів для домашнього пивоваріння: Django/DRF, PostgreSQL, Docker"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,6 +11,7 @@ dependencies = [
     "djangorestframework>=3.18.1",
     "djangorestframework-simplejwt>=5.5.1",
     "drf-spectacular>=0.30.0",
+    "graphene-django>=3.2.3",
     "gunicorn>=26.2.0",
     "pillow>=12.3.0",
     "psycopg[binary]>=3.3.5",
@@ -82,6 +83,10 @@ exclude = ["migrations/", "local_docs/"]
 
 [[tool.mypy.overrides]]
 module = "environ"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["graphene", "graphene.*", "graphene_django", "graphene_django.*"]
 ignore_missing_imports = true
 
 

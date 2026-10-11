@@ -1,6 +1,7 @@
 from typing import Any
 
 from django import forms
+from django.contrib.auth.forms import PasswordChangeForm as DjangoPasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 
 from apps.core.validators import normalize_phone
@@ -30,6 +31,10 @@ class RegisterForm(forms.Form):
         return User.objects.create_user(
             username=email, email=email, password=self.cleaned_data["password"]
         )
+
+
+class PasswordChangeForm(DjangoPasswordChangeForm):
+    """Password change for a logged-in user; Django's form already validates everything."""
 
 
 class ProfileForm(DeliveryForm, forms.ModelForm):

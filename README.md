@@ -2,10 +2,12 @@
 
 Інтернет-магазин товарів для домашнього пивоваріння: каталог з фільтрами, кошик у сесії,
 оформлення замовлення з доставкою Новою Поштою, особистий кабінет, відгуки після покупки,
-staff-панель і REST API з документацією.
+staff-панель, REST API з документацією та GraphQL-аналітика.
 
-**Стек:** Python 3.12, Django 6.1, DRF + SimpleJWT, drf-spectacular, PostgreSQL 17,
-uv, gunicorn, whitenoise, Caddy, Docker Compose, GitHub Actions.
+**Стек:** Python 3.12, Django 6.1, DRF + SimpleJWT, drf-spectacular, graphene-django,
+PostgreSQL 17, uv, gunicorn, whitenoise, Caddy, Docker Compose, GitHub Actions.
+
+**Автор:** `<ПІБ>`, група `<№ групи>`
 
 ## Що всередині
 
@@ -14,11 +16,12 @@ uv, gunicorn, whitenoise, Caddy, Docker Compose, GitHub Actions.
 | Каталог, фільтри, пошук, сортування | `/` |
 | Товар і відгуки | `/product/<slug>/` |
 | Кошик / оформлення | `/cart/`, `/checkout/` |
-| Кабінет (історія замовлень, профіль, адреса НП) | `/accounts/` |
+| Кабінет (історія замовлень з фільтром, профіль, зміна пароля, адреса НП) | `/accounts/` |
 | Staff-панель (товари, аналітика) | `/staff/products/`, `/staff/dashboard/` |
-| Django admin | `/admin/` |
+| Django admin + аналітика продажів | `/admin/`, `/admin/analytics/` |
 | REST API | `/api/` |
 | Swagger / ReDoc | `/api/docs/`, `/api/redoc/` |
+| GraphQL-аналітика (лише staff) | `/graphql/` |
 | Healthcheck | `/health/` |
 
 ## Запуск локально (без Docker)
@@ -104,3 +107,95 @@ Caddy сам отримає й оновлюватиме сертифікат Let
 | `/api/users/register/`, `/api/users/login/`, `/api/users/token/refresh/`, `/api/users/me/` | реєстрація, JWT, свій профіль |
 
 Кошик в API — той самий сесійний кошик, що й на сайті: Swagger і Postman зберігають cookie.
+
+### Приклади запитів з JWT
+
+Отримати токени (увійти):
+
+```bash
+curl -X POST http://localhost:8000/api/users/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username": "olena@example.com", "password": "demo-pass-123"}'
+# → {"access": "eyJ...", "refresh": "eyJ..."}
+```
+
+Доступ до свого профілю:
+
+```bash
+curl http://localhost:8000/api/users/me/ \
+  -H "Authorization: Bearer eyJ..."
+```
+
+Оновити `access` коли він прострочив (живе 30 хв; `refresh` — 7 днів):
+
+```bash
+curl -X POST http://localhost:8000/api/users/token/refresh/ \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "eyJ..."}'
+# → {"access": "eyJ..."}
+```
+
+Створити замовлення з кошика (потрібні JWT і cookie сесії):
+
+```bash
+curl -X POST http://localhost:8000/api/orders/ \
+  -H "Authorization: Bearer eyJ..." \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"last_name": "Шевченко", "first_name": "Аліса", "phone": "0991112233",
+       "city_name": "Київ (Київська обл.)", "city_ref": "...", "delivery_type": "branch",
+       "warehouse_ref": "...", "payment_method": "card"}'
+```
+
+Схема токенів: `POST /api/users/login/` → `access` (30 хв) + `refresh` (7 днів);
+`Authorization: Bearer <access>` на кожен запит; поновлення через
+`POST /api/users/token/refresh/`. Ті самі приклади є в Swagger: `/api/docs/`.
+
+## GraphQL-аналітика
+
+Єдиний ендпоінт `/graphql/` (GraphiQL у Swagger-стилі від graphene-django), доступ —
+лише для staff-користувачів (логін через сесію в браузері). Аналітичні запити:
+
+```graphql
+query {
+  orderStats {                      # виторг, кількість, середній чек, тренди
+    revenue count averageCheck
+    trends(days: 7) { day orders revenue }
+  }
+  productStats {                    # популярні товари, залишки
+    outOfStockCount
+    topProducts(limit: 5) { name soldQty stock }
+  }
+  userStats {                       # активність, повторні покупки
+    total activeLast30Days repeatCustomers
+  }
+}
+```
+
+## Структура проєкту
+
+```
+.
+├── apps/
+│   ├── accounts/       # реєстрація, профіль, зміна пароля, авторизація за email
+│   ├── analytics/      # GraphQL-схема та резолвери аналітики
+│   ├── api/            # REST API: viewsets, serializers, permissions, JWT
+│   ├── catalog/        # моделі Category/Product, фільтри, CBV каталогу
+│   ├── core/           # health, валідатори, templatetags, admin-аналітика
+│   ├── delivery/       # клієнт API Нової Пошти, форми доставки
+│   ├── orders/         # кошик у сесії, замовлення, оформлення, сервіси
+│   ├── payments/       # заглушка під майбутні платежі
+│   ├── reviews/        # відгуки з рейтингом (лише після покупки)
+│   └── staff/          # staff-панель: товари + дашборд аналітики
+├── config/             # settings (base/dev/local/prod), urls, wsgi/asgi
+├── templates/          # шаблони сайту, адмінки, email
+├── static/             # CSS, JS, зображення
+├── tests/              # health, GraphQL, admin-аналітика
+├── docker-compose.yml  # локальний запуск (web + db)
+├── docker-compose.prod.yml  # продакшн (web + db + caddy)
+├── Dockerfile
+├── conftest.py         # спільні фікстури pytest
+└── manage.py
+```
+
+Тести живуть поруч із кодом: `apps/<app>/tests.py` + `tests/` для крос-модульних.

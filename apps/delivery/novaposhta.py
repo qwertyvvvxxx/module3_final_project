@@ -7,7 +7,7 @@ The API answers HTTP 200 even on errors, so we check the `success` flag instead.
 from dataclasses import dataclass
 from typing import Any
 
-import requests  # noqa: F401  # used in call(), written at K5
+import requests
 from django.conf import settings
 
 POSTOMAT_TYPE_REF = "f9316480-5f2d-425d-bc2c-ac7cd29decf0"  # Address/getWarehouseTypes
@@ -53,7 +53,7 @@ class NovaPoshtaClient:
             "apiKey": self.api_key,
             "modelName": model,
             "calledMethod": method,
-            "methodProperties": properties
+            "methodProperties": properties,
         }
         try:
             response = requests.post(self.api_url, json=payload, timeout=self.timeout)
@@ -63,11 +63,14 @@ class NovaPoshtaClient:
             raise NovaPoshtaError(f"API Нової Пошти недоступне: {error}") from error
 
         if not body.get("success"):
-            raise NovaPoshtaError("; ".join(body.get("errors") or ["Невідома помилка API."]))
+            errors = body.get("errors") or []
+            if NOTHING_FOUND in errors:  # the API answers this way for an empty result
+                return []
+            raise NovaPoshtaError("; ".join(errors or ["Невідома помилка API."]))
         return body["data"]
 
     def search_cities(self, query: str, limit: int = 10) -> list[City]:
-        # TODO(K5): Address/getCities with FindByString; NOTHING_FOUND error -> [].
+        """Cities matching the query, e.g. for the delivery picker at checkout."""
         result = self.call(
             "Address",
             "getCities",
@@ -79,16 +82,17 @@ class NovaPoshtaClient:
 
         try:
             for address in result:
-                addresses.append(City(
-                    ref=address["Ref"],
-                    name=address["Description"],
-                    area=address["AreaDescription"],
-                ))
+                addresses.append(
+                    City(
+                        ref=address["Ref"],
+                        name=address["Description"],
+                        area=address["AreaDescription"],
+                    )
+                )
         except KeyError:
             return []
 
         return addresses
-
 
     def search_warehouses(
         self, city_ref: str, query: str = "", postomat: bool = False, limit: int = 20

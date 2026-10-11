@@ -5,6 +5,7 @@ from django.contrib.auth import login
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse, reverse_lazy
@@ -12,7 +13,7 @@ from django.views.generic import FormView, UpdateView
 
 from apps.orders.models import Order
 
-from .forms import ProfileForm, RegisterForm
+from .forms import PasswordChangeForm, ProfileForm, RegisterForm
 from .models import User
 
 
@@ -46,7 +47,7 @@ class AccountView(LoginRequiredMixin, UpdateView):
     template_name = "accounts/account.html"
     orders_per_page = 8
 
-    def get_object(self, queryset: Any = None) -> User:
+    def get_object(self, queryset: QuerySet[User] | None = None) -> User:
         return self.request.user  # type: ignore[return-value]
 
     def get_success_url(self) -> str:
@@ -60,10 +61,27 @@ class AccountView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         orders = Order.objects.filter(user=self.object)
+        status = self.request.GET.get("status", "")
+        if status in Order.OrderStatus.values:
+            orders = orders.filter(status=status)
         context["orders_page"] = Paginator(orders, self.orders_per_page).get_page(
             self.request.GET.get("page")
         )
+        context["status_choices"] = [("", "Усі")] + list(Order.OrderStatus.choices)
+        context["selected_status"] = status if status in Order.OrderStatus.values else ""
         return context
+
+
+class PasswordChangeView(LoginRequiredMixin, auth_views.PasswordChangeView):
+    """Change the password of the logged-in user (the spec asks for it in the account)."""
+
+    form_class = PasswordChangeForm
+    template_name = "accounts/password_change.html"
+    success_url = reverse_lazy("accounts:profile")
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        messages.success(self.request, "Пароль змінено.")
+        return super().form_valid(form)
 
 
 class PasswordResetView(auth_views.PasswordResetView):
