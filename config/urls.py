@@ -24,6 +24,8 @@ class StaffGraphQLView(GraphQLView):
         return super().dispatch(request, *args, **kwargs)
 
 
+from apps.core.views import health
+
 urlpatterns = [
     path("admin/analytics/", analytics_view, name="admin_analytics"),
     path("admin/", admin.site.urls),
